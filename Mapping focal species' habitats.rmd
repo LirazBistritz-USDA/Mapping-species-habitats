@@ -27,6 +27,7 @@ A full habitat suitability table for all CWHR species can be downloaded from the
 #The species in this code are: b117 NORTHERN GOSHAWK, b251 BAND-TAILED PIGEON, b302 NUTTALL'S WOODPECKER, b410 LOGGERHEAD SHRIKE, m152 RINGTAIL, m154 Marten, m155 Fisher, m165 MOUNTAIN LION
 
 dir <- "~/" #directory where the CWHR table, landscape boundary, base layer and species' ranges are located
+output_dir <- "~/" #the directory to which outputs will be saved
 
 CA <- terra::rast(paste0(dir,"CA_boundary.tif")) #the boundary
 
@@ -60,9 +61,8 @@ for (i in code_list) {
     repro_HM <- classify(base, df_r_HM, others=0)
     repro_HM_withinrange <- ifel(range == 1, repro_HM, 0)
     
-    writeRaster(repro_HM_withinrange, paste0("final/focal species/",i,".tif"), overwrite=T)
+    writeRaster(repro_HM_withinrange, paste0(output_dir, i, ".tif"), overwrite=T)
     }
-
 
 #for High reproduction habitat:
 for (i in code_list) {
@@ -79,9 +79,8 @@ for (i in code_list) {
     repro_H <- classify(base, df_r_H, others=0)
     repro_H_withinrange <- ifel(range == 1, repro_H, 0)
     
-    writeRaster(repro_H_withinrange, paste0("F:/All state biodiversity/",i,"_reproH.tif"), overwrite=T, datatype='INT1U')
+    writeRaster(repro_H_withinrange, paste0(output_dir, i, "_reproH.tif"), overwrite=T, datatype='INT1U')
 }
-#final/focal species/",i,"_H.tif"   
 
 #H in foraging:
 for (i in code_list) {
@@ -98,10 +97,8 @@ for (i in code_list) {
     forag_H <- classify(base, df_f_H, others=0)
     forag_H_withinrange <- ifel(range == 1, forag_H, 0)
     
-    writeRaster(forag_H_withinrange, paste0("F:/All state biodiversity/",i,"_foragH.tif"), overwrite=T, datatype='INT1U')
+    writeRaster(forag_H_withinrange, paste0(output_dir, i, "_foragH.tif"), overwrite=T, datatype='INT1U')
 }
-#final/focal species/",i,"_H.tif" 
-
 
 #Moderate reproduction only:
 for (i in code_list) {
@@ -118,7 +115,7 @@ for (i in code_list) {
     repro_M <- classify(base, df_r_M, others=0)
     repro_M_withinrange <- ifel(range == 1, repro_M, 0)
     
-    writeRaster(repro_M_withinrange, paste0("final/focal species/",i,"_M.tif"), overwrite=T, datatype='INT1U')
+    writeRaster(repro_M_withinrange, paste0(output_dir, i, "_M.tif"), overwrite=T, datatype='INT1U')
     }
 
 #both M and H in the same layer, foraging:
