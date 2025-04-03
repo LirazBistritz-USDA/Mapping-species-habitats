@@ -1,0 +1,142 @@
+---
+title: "Mapping focal species' habitats"
+author: "Liraz Bistritz"
+date: "2025-04-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#focal species, statewide#
+#b117 NORTHERN GOSHAWK, b251 BAND-TAILED PIGEON, b302 NUTTALL'S WOODPECKER, b410 LOGGERHEAD SHRIKE, m152 RINGTAIL, m154 Marten, m155 Fisher, m165 MOUNTAIN LION
+
+#species ranges can be downloaded from https://map.dfg.ca.gov/metadata/ds0897.html
+
+#Instructions to download the species_habitats table from CWHR:
+A full habitat suitability table for all CWHR species can be downloaded from the CWHR web application (https://apps.wildlife.ca.gov/cwhr/index.shtml) through the query function accessible through the Query tab. For Query type, select ‘Single Condition.’ Note that CWHR queries default to selecting all options when none are chosen. Therefore, a user can quickly navigate through the following series of query option pages to construct the most inclusive possible query by simply selecting the ‘Next’ option at right to advance to the next page without selecting any other options. This will include all counties, habitat types and structural classes, habitat elements, species, species legal statuses, and seasons in the query by simply choosing ‘Next’ 6 times consecutively. A user may also choose to constrain the query by selecting any options on any of the pages before advancing to the next page. On the final query page, choose ‘Report Type: Detailed.’ You may Sort on any of the available attributes. Choose ‘Run’ to engage the query which may take several minutes to complete. There is a small wheel within the thin blue ‘CWHR’ bar above the query tabs which will be active when the query is running. When complete, the query results are displayed below. You now have the option to give the results a file name in the ‘PDF/CSV Output Filename’ user entry box. Choose PDF, or to enable use of results as a spreadsheet choose CSV. Check your downloads folder to retrieve your file.
+
+```{r}
+#This code creates a separate binary layer for:
+# 1) Reproduction habitat (highly suitable)
+# 2) Foraging habitat (highly suitable)
+# 3) Reproduction habitat (moderately suitable)
+# 4) Foraging habitat (highly and moderately suitable)
+
+#The species in this code are: b117 NORTHERN GOSHAWK, b251 BAND-TAILED PIGEON, b302 NUTTALL'S WOODPECKER, b410 LOGGERHEAD SHRIKE, m152 RINGTAIL, m154 Marten, m155 Fisher, m165 MOUNTAIN LION
+
+dir <- "~/" #directory where the CWHR table, landscape boundary, base layer and species' ranges are located
+
+CA <- terra::rast(paste0(dir,"CA_boundary.tif")) #the boundary
+
+base <- rast(paste0(dir, "base_layer_cc_size_veg.tif")) %>%
+  terra::project(CA, method="near") %>%
+  terra::crop(CA) #the base layer, includes a unique numeric ID to each canopy_cover-size-vegetation combination. The ID needs to match with the IDs in the habitat table (a new column that needs to be created in the CWHR habitat table, named 'unique_hab_ID').
+
+habitats <- read.csv(paste0(dir,"species_habitats.csv"))
+habitats$ID <- tolower(habitats$ID) #turn species ID to lower case so that it matches with the range rasters' names
+
+code_list <- c("b117", "b251", "b302", "b410", "m152", "m154", "m155", "m165") #list of species IDs, as they appear in the CHWR habitat table
+
+#Before proceeding, the values in the REPRO, FEEDING columns need to be reclassified:
+#H values should be reclassified to 1
+#M values should be reclassified to 0.66
+#L values should be reclassified to 0.33
+#In this code, the reclassified columns are named REPRO_num and FEEDING_num
+
+#both M and H in the same layer, reproduction, Moderate as 0.66, High as 1:
+for (i in code_list) {
+    range <- rast(paste0(dir, i,".tif"))
+    print(i)
+    plot(range)
+    
+    df <- habitats %>% dplyr::filter(habitats$ID == i)
+    df <- unique(df)
+    
+    df_r <- df %>% dplyr::select("unique_hab_ID","REPRO_num")
+    df_r_HM <- df_r %>% dplyr::filter(REPRO_num > 0.5) #to keep only Moderate and High
+    
+    repro_HM <- classify(base, df_r_HM, others=0)
+    repro_HM_withinrange <- ifel(range == 1, repro_HM, 0)
+    
+    writeRaster(repro_HM_withinrange, paste0("final/focal species/",i,".tif"), overwrite=T)
+    }
+
+
+#for High reproduction habitat:
+for (i in code_list) {
+    range <- rast(paste0(dir, i,".tif"))
+    print(i)
+    plot(range)
+    
+    df <- habitats %>% dplyr::filter(habitats$ID == i)
+    df <- unique(df)
+    
+    df_r <- df %>% dplyr::select("unique_hab_ID","REPRO_num")
+    df_r_H <- df_r %>% dplyr::filter(REPRO_num > 0.99) #High is 1
+    
+    repro_H <- classify(base, df_r_H, others=0)
+    repro_H_withinrange <- ifel(range == 1, repro_H, 0)
+    
+    writeRaster(repro_H_withinrange, paste0("F:/All state biodiversity/",i,"_reproH.tif"), overwrite=T, datatype='INT1U')
+}
+#final/focal species/",i,"_H.tif"   
+
+#H in foraging:
+for (i in code_list) {
+    range <- rast(paste0(dir, i,".tif"))
+    print(i)
+    plot(range)
+    
+    df <- habitats %>% dplyr::filter(habitats$ID == i)
+    df <- unique(df)
+    
+    df_f <- df %>% dplyr::select("unique_hab_ID","FEEDING_num")
+    df_f_H <- df_f %>% dplyr::filter(FEEDING_num > 0.99) #High is 1
+    
+    forag_H <- classify(base, df_f_H, others=0)
+    forag_H_withinrange <- ifel(range == 1, forag_H, 0)
+    
+    writeRaster(forag_H_withinrange, paste0("F:/All state biodiversity/",i,"_foragH.tif"), overwrite=T, datatype='INT1U')
+}
+#final/focal species/",i,"_H.tif" 
+
+
+#Moderate reproduction only:
+for (i in code_list) {
+    range <- rast(paste0(dir, i,".tif"))
+    print(i)
+    plot(range)
+    
+    df <- habitats %>% dplyr::filter(habitats$ID == i)
+    df <- unique(df)
+    
+    df_r <- df %>% dplyr::select("unique_hab_ID","REPRO_num")
+    df_r_M <- df_r %>% dplyr::filter(REPRO_num > 0.5 & REPRO_num < 0.8) #to keep only Moderate, which is 0.66
+    
+    repro_M <- classify(base, df_r_M, others=0)
+    repro_M_withinrange <- ifel(range == 1, repro_M, 0)
+    
+    writeRaster(repro_M_withinrange, paste0("final/focal species/",i,"_M.tif"), overwrite=T, datatype='INT1U')
+    }
+
+#both M and H in the same layer, foraging:
+for (i in code_list) {
+    range <- rast(paste0(dir, i,".tif"))
+    print(i)
+    plot(range)
+    
+    df <- habitats %>% dplyr::filter(habitats$ID == i)
+    df <- unique(df)
+    
+    df_f <- df %>% dplyr::select("unique_hab_ID","FEEDING_num")
+    df_f_HM <- df_f %>% dplyr::filter(FEEDING_num > 0.5) #to keep only Moderate and High
+    
+    feed_HM <- classify(base, df_f_HM, others=0)
+    feed_HM_withinrange <- ifel(range == 1, feed_HM, 0)
+    
+    writeRaster(feed_HM_withinrange, paste0("final/focal species/",i,"_foraging.tif"), overwrite=T)
+}
+
+```
